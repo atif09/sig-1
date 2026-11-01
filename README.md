@@ -15,7 +15,7 @@ Automated analysis of `.IQ` and `.wav` signal captures, running entirely in the 
 
 Signals collected off the air (HF, VHF and UHF) are recorded as `.wav` or `.IQ` files. Analysing them is done
 by hand today, and recordings from different sensors and places have different parameters, so details such
-as modulation, FEC and interleaving are often unclear. The PS asks for a GUI tool that takes a capture,identifies its parameters, demodulates it, de-interleaves, error-corrects, and correlates the bit stream to
+as modulation, FEC and interleaving are often unclear. The problem statement(PS) asks for a GUI tool that takes a capture,identifies its parameters, demodulates it, de-interleaves, error-corrects, and correlates the bit stream to
 find header and payload.
 
 ## Our solution
