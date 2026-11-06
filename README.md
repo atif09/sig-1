@@ -24,9 +24,41 @@ Load a capture and the tool works out what it is, then decodes it. Every stage i
 constellation plot and a results panel. It runs entirely client-side; no server, no Python at runtime, and
 nothing leaves the user's machine.
 
+### How a capture is analysed
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 420}}}%%
+flowchart TD
+    A["Load capture<br/>.wav · .IQ (cf32, ci16, cu8) · SigMF"] --> B["Find and extract the signal<br/>in a wideband capture (when enabled)"]
+    B --> C["Spectrogram (waterfall)"]
+    C --> D["Identify modulation<br/>ML classifier + constellation check"]
+    D --> E["Estimate symbol rate<br/>recover timing and carrier"]
+    E --> G["Demodulate<br/>FSK · PSK · QAM · ASK · OOK"]
+    G --> H{"AX.25 frame<br/>with valid CRC?"}
+    H -- "yes" --> R["Decoded message"]
+    H -- "no" --> I["Detect interleaver + FEC<br/>rank analysis · Parameter Search"]
+    I --> J["De-interleave<br/>block · convolutional · diagonal · pseudo-random"]
+    J --> K["Error-correct<br/>Viterbi · RS · concatenated · LDPC"]
+    K --> L["Correlate bit stream<br/>sync word · header · payload"]
+    L --> R
+```
+
 The result is marked **verified** when a decode checks out (FEC re-encode agreement or a valid CRC),
 **structured** when the bits repeat in a frame pattern, or **unverified** otherwise, so the tool never
 presents a guess as a decode.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 420}}}%%
+flowchart TD
+    S["Decode with the classifier's top label"] --> Q{"Decode checks out?<br/>valid CRC, or re-encodes<br/>to match the received bits"}
+    Q -- "yes" --> V["VERIFIED"]
+    Q -- "no" --> T["Retry other candidates<br/>constellation reading first,<br/>then runner-up labels,<br/>then other pulse shapes"]
+    T --> Q2{"Any candidate<br/>verifies?"}
+    Q2 -- "yes" --> V2["VERIFIED<br/>simplest modulation that verifies"]
+    Q2 -- "no" --> F{"Bits repeat in a<br/>framed pattern?"}
+    F -- "yes" --> ST["STRUCTURED"]
+    F -- "no" --> U["UNVERIFIED<br/>raw bits only, never shown as a decode"]
+```
 
 ## Features
 
@@ -52,11 +84,26 @@ presents a guess as a decode.
 
 ## Architecture
 
-```
- browser file  ──▶  JS shell (web/)  ──▶  WASM module (Qt Widgets GUI + C++ pipeline)
-                         │                     ingest ▶ spectrogram ▶ ML ▶ demod ▶ de-interleave
-                         │                                            │      ▶ FEC decode ▶ correlate
-                         └── onnxruntime-web ◀── Embind bridge ◀──────┘
+```mermaid
+flowchart LR
+    F[".IQ / .wav / SigMF capture<br/>picked or dropped on the page"] --> P
+
+    subgraph B["Browser tab (static files only, nothing uploaded)"]
+        direction LR
+        P["Page: Qt Widgets GUI<br/>compiled to WebAssembly"]
+        subgraph W["Web Worker (keeps the page responsive)"]
+            direction TB
+            C["C++ pipeline on liquid-dsp<br/>compiled to WebAssembly"]
+            M["ONNX modulation classifier<br/>onnxruntime-web"]
+            C -- "spectrogram (Embind)" --> M
+            M -- "class probabilities" --> C
+        end
+        P -- "file bytes + settings" --> C
+        C -- "parameters, bits, decoded message" --> P
+    end
+
+    P --> V["Waterfall, constellation,<br/>results panel, JSON export"]
+    H["Any static web server<br/>(Vercel, or an internal server)"] -. "serves the files once" .-> B
 ```
 
 | Layer | Technology |
