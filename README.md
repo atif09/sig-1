@@ -91,19 +91,6 @@ scripts/serve.sh                  # open http://localhost:8080/ and drop a captu
 Tests: `ctest --test-dir build` (native) and `ctest --test-dir build-wasm` (WebAssembly, including real
 Chrome). [tests/COVERAGE.md](tests/COVERAGE.md) lists what is covered.
 
-## Known limits
-
-- The classifier is only as good as its training data and mislabels some modulations. The tool retries with
-  other labels and checks every decode, so a wrong label usually costs nothing, but not always.
-- QAM16 and QAM64 need a clean signal: on our synthetic captures they decode reliably at about 25 dB, and
-  telling them apart gets harder at low signal-to-noise ratios and short lengths.
-- The RS and LDPC codes are small custom codes. The RS(255,223) + Viterbi chain follows the CCSDS parameters
-  but not its interleaving, randomiser or sync marker, and has not been tried on a real recording.
-- A convolutional interleaver combined with FEC does not recover the message.
-- On very large captures auto-detect searches only the first part (the first 2 million samples and, of
-  those, 60,000 bits) and says so; the rest of a big file is reached by stepping through its windows.
-- Most test captures are synthetic; the real ones are the ten CPSat beacons.
-
 ## License
 
 [GPLv3](LICENSE). Qt is statically linked into the WASM build, which requires a GPL-compatible license.
